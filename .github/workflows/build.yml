@@ -39,7 +39,7 @@ jobs:
           # Convert "3.10,3.11,3.12" to ["3.10","3.11","3.12"]
           python_array=$(echo '["${{ env.PYTHON_VERSIONS }}"]' | sed 's/,/","/g')
           echo "python-versions=$python_array" >> $GITHUB_OUTPUT
-          
+
           # Convert "3.10,3.11,3.12" to "cp310-* cp311-* cp312-*"
           cibw=$(echo "${{ env.PYTHON_VERSIONS }}" | sed 's/\.//g; s/,/ /g; s/\([0-9]*\)/cp\1-*/g')
           echo "cibw-build=$cibw" >> $GITHUB_OUTPUT
@@ -160,7 +160,7 @@ jobs:
           else
             chunk="${{matrix.os}}"
           fi
-          
+
           echo "Runner OS: ${{ runner.os }}"
           echo "os       : ${os}"
           echo "version  : ${version}"
@@ -184,44 +184,41 @@ jobs:
     permissions:
       id-token: write
       contents: read
-
+    env:
+      TWINE_PASSWORD: ${{ secrets.TWINE_PASSWORD }}
+      TWINE_USERNAME: ${{ secrets.TWINE_USERNAME }}
+      TWINE_REPOSITORY_URL: ${{ vars.TWINE_REPOSITORY_URL }}
+      TWINE_REPOSITORY: ${{ vars.TWINE_REPOSITORY }}
     steps:
+
+
       - name: Setup Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-
       - name: Retrieve packages
         uses: actions/download-artifact@v4
         with:
           path: dist
-
       - name: Install twine
-        run: |
-          pip install twine
-          pip install -U packaging
-
+        run: pip install twine
       - name: Move files to top level directory
         run: |
           ls -ltR dist
           python - << EOF
           from pathlib import Path
           import shutil
-          
+
           d = Path('dist')
           for f in d.rglob('*.whl'):
               shutil.move(f, d / f.name)
-          
+
           for f in d.iterdir():
               if f.is_dir():
                   shutil.rmtree(f)
-          
+
           EOF
 
-      - name: Upload packages to testpypi
+      - name: Upload packages
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        run: python -m twine upload --skip-existing --repository testpypi dist/* --verbose
-
-      - name: Upload packages to pypi
-        if: startsWith(github.ref, 'refs/tags/')
-        run: python -m twine upload --skip-existing dist/* --verbose
+        run: twine upload --skip-existing dist/* --verbose
