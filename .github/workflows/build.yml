@@ -12,7 +12,7 @@ on:
     types: [ published ]
 
 env:
-  PYTHON_VERSIONS: "3.10,3.11,3.12,3.13,3.14"
+  PYTHON_VERSIONS: "3.11,3.12"
 
 concurrency:
   cancel-in-progress: false
@@ -44,37 +44,6 @@ jobs:
           cibw=$(echo "${{ env.PYTHON_VERSIONS }}" | sed 's/\.//g; s/,/ /g; s/\([0-9]*\)/cp\1-*/g')
           echo "cibw-build=$cibw" >> $GITHUB_OUTPUT
 
-  build_wheels_windows:
-    name: Build wheels on Windows
-    needs: setup
-    runs-on: windows-latest
-    strategy:
-      fail-fast: False
-      matrix:
-        python-version: ${{ fromJSON(needs.setup.outputs.python-versions) }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-
-      - name: Setup Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Build wheels
-        run: |
-          python -m pip install -U pip numpy swig wheel setuptools
-          python setup.py bdist_wheel -d dist
-          ls -al ./dist
-
-      - name: Place wheels in artifacts folder
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-${{ matrix.python-version }}
-          path: ./dist/*.whl
-
   build_wheels_unix:
     name: Build wheels on ${{ matrix.os }}
     needs: setup
@@ -82,7 +51,7 @@ jobs:
     strategy:
       fail-fast: False
       matrix:
-        os: [ az-k8s-cpu-large, az-k8s-cpu-large-arm64, macos-latest, macos-14 ]
+        os: [ az-k8s-cpu-large, az-k8s-cpu-large-arm64 ]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -92,7 +61,7 @@ jobs:
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Build wheels
         env:
@@ -116,11 +85,11 @@ jobs:
 
   test-wheels:
     name: Test wheels
-    needs: [ setup, build_wheels_windows, build_wheels_unix ]
+    needs: [ setup, build_wheels_unix ]
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ windows-latest, az-k8s-cpu-large, az-k8s-cpu-large-arm64, macos-latest, macos-14 ]
+        os: [ az-k8s-cpu-large, az-k8s-cpu-large-arm64 ]
         python-version: ${{ fromJSON(needs.setup.outputs.python-versions) }}
 
     steps:
